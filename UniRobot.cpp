@@ -38,70 +38,115 @@ void UniRobot::imageProcess()
 {
 	unsigned char *rgb = getRGBImage();  //get raw data, format: RGB
 	Mat rgbMat = getRGBMat(); //get rgb data to cv::Mat
-	cvtColor(rgbMat, rgbMat, COLOR_BGR2GRAY);//转灰度图
-	threshold(rgbMat, rgbMat, 2000, 255, THRESH_BINARY);//二值化
-	cout<<"A1"<<endl;
-	
-	if (mode == MODE_BALL)
-  	{
-  	cout<<"A2"<<endl;
-  	Mat dst_img;
-  	cout<<"A"<<endl;	
-	// 形态学操作
-	Mat kernel = getStructuringElement(MORPH_RECT, Size(5, 5), Point(-1, -1));
-	// 构建形态学操作的结构元
-	cout<<"A"<<endl;
-	morphologyEx(rgbMat, dst_img, MORPH_CLOSE, kernel, Point(-1, -1));
-	//闭操作
-	
-	kernel = getStructuringElement(MORPH_RECT, Size(5,5), Point(-1, -1));
-	// 构建形态学操作的结构元
-	morphologyEx(dst_img, dst_img, MORPH_OPEN, kernel, Point(-1, -1));
-	//开操作
-	
-	// 寻找轮廓
-	vector<vector<Point>> contours;
-	vector<Vec4i> hireachy;
-	findContours(dst_img, contours, hireachy, RETR_TREE, CHAIN_APPROX_SIMPLE, Point());
-	Mat result_img = Mat::zeros(rgbMat.size(), CV_8UC3);
-	// 创建与原图同大小的黑色背景
-	Point circle_center;
-	//定义圆心坐标
-	
-	for (auto t = 0; t < contours.size(); ++t)
-	{
-		// 面积过滤
-		double area = contourArea(contours[t]);
-		//计算点集所围区域的面积
-		
-		// 横纵比过滤
-		Rect rect = boundingRect(contours[t]);
-		// 求点集的最小直立外包矩形
-		float ratio = float(rect.width) / float(rect.height);
-		//求出宽高比
-		//if (ratio < 1.1 && ratio > 0.9)       //因为圆的外接直立矩形肯定近似于一个正方形，因此宽高比接近1.0
-		
-			printf("圆的面积: %f\n", area);
-			double arc_length = arcLength(contours[t], true);
-			//计算点集所围区域的周长
-			printf("圆的周长 : %f\n", arc_length);
-			int x = rect.x + rect.width / 2;
-			int y = rect.y + rect.height / 2;
-			circle_center = Point(x, y);
-			//得到圆心坐标
-			cout << "圆心坐标：" << "宽" << circle_center.x << " " << "高" << circle_center.y << endl;
-		
-		
-	}
-	}
-	
-	
+            
+	cvtColor(rgbMat, rgbMat, COLOR_BGR2GRAY);//杞伆搴﹀浘
+	threshold(rgbMat, rgbMat, 200, 255, THRESH_BINARY);//浜屽€煎寲
 
-	
+	showImage(rgb);
+	if (mode == MODE_BALL)
+	{
+           resInfo.ball_found=false;
+           int temp,block_a,block_b=0,max_a=0,max_b=0,Block_b;
+           //cout<<"start"<<endl;
+	for (int i = 0; i < rgbMat.rows; i += 3)
+	{
+            if (resInfo.ball_found) break;
+  	    for (int j = 0; j < rgbMat.cols; j += 1)
+               {	if (resInfo.ball_found) break;
+                       temp=0;
+                       block_a=0;
+                       max_a=0;
+                       if(rgbMat.at<unsigned char>(i, j) == 255)
+                       {
+            		for(int tempy = i; tempy <rgbMat.rows;tempy ++)
+             		{
+                        		if (rgbMat.at<unsigned char>(tempy,j) == 255&&block_a<35&&(block_a<max_a*2||max_a<3))
+                       		{
+                                   		//if(block_a>20&&block_atemp/3) {break;}
+                                  		temp++;
+                                  		temp+=block_a;
+                                  		if(max_a<block_a)
+                                  		{
+                                  		max_a=block_a;
+                                  		}
+                                  		block_a=0;
+                        		}
+                        		else
+                        		{
+                        		block_a++;
+                        		}
+             		}
+                       	if(temp<10||max_a>temp*2/5)
+                       	{
+                                     	continue;
+                       	}
+                                	//cout<<i<<" "<<j<<" "<<temp<<endl;
+                       	
+            			
+                        		//cout<<i<<"   "<<j<<endl;
+                        	
+                        }
+                        int num=0,NUM=0;
+                        Block_b=0;
+                        max_b=0;
+                        if(j-temp/2<0||j+temp/2>rgbMat.cols){break;}
+                        for(int tempx =j-temp/2;tempx<j+temp/2;tempx++)
+                        {
+                            if(rgbMat.at<unsigned char>(i, tempx) == 0)
+                            {
+                                block_b++;
+                                if(block_b>temp*2/5){break;}
+                                if(NUM==num)
+                                {
+                                NUM++;
+                                }
+                            }
+                            else
+                            {
+                                Block_b+=block_b;
+                                if(max_b<block_b){max_b=block_b;}
+                               // if((block_b<temp/2&&NUM>1)||NUM>2){resInfo.ball_found=true;}
+                                block_b=0;
+                                if(num<NUM)
+                                {
+                                num++;
+                                }
+                            }
+                        }
+                        if(Block_b<temp*3/5&&max_a>3&&max_b>3&&max_a<temp/3&&max_b<temp/3&&((temp<55&&temp>25&&NUM)||(temp>55 && NUM>2)))
+                        {
+                          resInfo.ball_found=true;
+                        }
+             	//cout<<"A2"<<endl;
+              	if (resInfo.ball_found)
+              	{
+                        	int length=0;
+                              	for(int I=i;I<i+temp;I++)
+                              	{
+                                     if(rgbMat.at<unsigned char>(I, j+temp/4) == 0||rgbMat.at<unsigned char>(I, j-temp/4) == 0)
+                                     {
+                                         length++;
+                                     }
+                              	}
+                              	//if(length-temp*5/4>0)
+                              	//{
+                                 // resInfo.ball_found=false;
+                                 // continue;
+                              	//}/
+                        	resInfo.ball_y=i+temp/2;
+                         	resInfo.ball_x=j;
+                         	cout << "圆心 "<<resInfo.ball_x<<" "<<resInfo.ball_y<<"直径"<<temp<<endl;
+                         	
+              	}
+              		
+	}
+	}
+	}
 	else if (mode == MODE_LINE)
 	{
 		//TODO Write down your code
 		//update the resInfo
+
 		int left = 0, right = 0, mid;
 		vector<int> midX;
 		vector<int> midY;
@@ -181,8 +226,6 @@ void UniRobot::imageProcess()
 		
 	
 	}
-	//rgb=RGB(rgbMat);
-	showImage(rgb);
 	rgbMat.release();
 	delete[]rgb;
 }
@@ -196,10 +239,11 @@ void UniRobot::run()
   modes.push_back("1. Ball");
   modes.push_back("2. Line");
   cout << "Run Mode: " <<modes[(int)mode-1]<< endl;
-
+  int break_num_b=0;
   // First step to update sensors values
   myStep();
-
+  int res=0;
+  
   // set eye led to green
   mEyeLED->set(0x00FF00);
 
@@ -217,7 +261,7 @@ void UniRobot::run()
   int fdown = 0;
   const double acc_tolerance = 80.0;
   const double acc_step = 20;
-
+  
   while (true) 
   {
     double neckPosition, headPosition;
@@ -253,12 +297,89 @@ void UniRobot::run()
     else //*********************************************************//
     {
       imageProcess();
+
+      
       //TODO control the robot according to the resInfo you updated in imageProcess
       //demo
       //kick ball
+
       if(mode == MODE_BALL) // mode ball 
       {
-        
+       // for()
+         // headPosition = clamp(0.7, minMotorPositions[19], maxMotorPositions[19]);
+          //mMotors[19]->setPosition(headPosition);
+        if(resInfo.ball_found)
+        {
+          res=false;
+          break_num_b=0;
+          if(resInfo.ball_x<140||(resInfo.ball_x<=180&&resInfo.ball_x>=160)){mGaitManager->setAAmplitude(0.06);}
+          else if(resInfo.ball_x>180||(resInfo.ball_x<160&&resInfo.ball_x>=140)){mGaitManager->setAAmplitude(-0.06);}
+          if(resInfo.ball_y<=200){mGaitManager->setXAmplitude(0.75);}
+          if (resInfo.ball_y > 125)
+          {
+            headPosition = clamp(-0.24, minMotorPositions[19], maxMotorPositions[19]);
+            mMotors[19]->setPosition(headPosition); //x -1.0 ~ 1.0
+            res=true;
+            if(resInfo.ball_y > 150&&res)
+            {
+              mGaitManager->stop();
+             // wait(500);
+              if (resInfo.ball_x >=70&&resInfo.ball_x<160)
+              {
+                //mGaitManager->stop();
+                mMotionManager->playPage(13); // left kick
+                imageProcess();
+              }
+              else if(resInfo.ball_x >=160&&resInfo.ball_x<250)
+              {
+
+                mMotionManager->playPage(12); // right kick
+                imageProcess();
+              }
+              headPosition = clamp(0.5, minMotorPositions[19], maxMotorPositions[19]);
+                mMotors[19]->setPosition(headPosition);
+                imageProcess();
+              mMotionManager->playPage(9); // walkready position
+              //neckPosition = clamp(-0.3, minMotorPositions[18], maxMotorPositions[18]);
+              //mMotors[18]->setPosition(neckPosition);
+              mGaitManager->start();
+            }
+          }
+        }
+        else
+        {
+            break_num_b++;
+             mGaitManager->setAAmplitude(0.0);
+           // mGaitManager->setAAmplitude(0.0);
+            if(break_num_b>20&&resInfo.ball_y>200)
+            {
+              mGaitManager->setXAmplitude(-0.7);
+              break_num_b=0;
+            }
+            if(break_num_b>40)
+            {
+              res=false;
+              headPosition = clamp(0.3, minMotorPositions[19], maxMotorPositions[19]);
+              mMotors[19]->setPosition(headPosition);
+              if(resInfo.ball_x >=200&&break_num_b>30)
+              {
+                mGaitManager->setAAmplitude(-0.04);
+                headPosition = clamp(-0.1, minMotorPositions[19], maxMotorPositions[19]);
+                mMotors[19]->setPosition(headPosition);
+                imageProcess();
+                if(resInfo.ball_found) continue;
+              }
+              if(resInfo.ball_x <=120&&break_num_b>30)
+              {
+                mGaitManager->setAAmplitude(0.04);
+                headPosition = clamp(-0.1, minMotorPositions[19], maxMotorPositions[19]);
+                mMotors[19]->setPosition(headPosition);
+                if(resInfo.ball_found) continue;
+              }
+            }
+        }
+    
+        mGaitManager->step(mTimeStep);
       }
       else if(mode == MODE_LINE) //mode line
       {
@@ -379,22 +500,6 @@ unsigned char* UniRobot::getRGBImage()
   return rgb;
 }
 
-/*unsigned char* UniRobot::RGB(Mat rgbMat)
-{
-  unsigned char *rgb=new unsigned char[3*image_w*image_h];
-  int rows=rgbMat.rows,cols=rgbMat.cols;
-  for(int i=0;i<rows;++i)
-  {
-    for(int j=0;j<cols;++j)
-    {
-      rgb[i*rows+cols+0]=rgbMat.at<Vec3b>(i,j)[0];
-      rgb[i*rows+cols+1]=rgbMat.at<Vec3b>(i,j)[1];
-      rgb[i*rows+cols+2]=rgbMat.at<Vec3b>(i,j)[2];
-    }
-  }
-  return rgb;
-}
-*/
 Mat UniRobot::getRGBMat()
 {
   unsigned char *rgb = getRGBImage();
